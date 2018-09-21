@@ -90,7 +90,7 @@ class Chatbot:
         globalArgs.add_argument('--test',
                                 nargs='?',
                                 choices=[Chatbot.TestMode.ALL, Chatbot.TestMode.INTERACTIVE, Chatbot.TestMode.DAEMON],
-                                const=Chatbot.TestMode.ALL, default=None,
+                                const=Chatbot.TestMode.ALL, default=False,
                                 help='if present, launch the program try to answer all sentences from data/test/ with'
                                      ' the defined model(s), in interactive mode, the user can wrote his own sentences,'
                                      ' use daemon mode to integrate the chatbot in another program')
@@ -121,10 +121,11 @@ class Chatbot:
         nnArgs = parser.add_argument_group('Network options', 'architecture related option')
         nnArgs.add_argument('--hiddenSize', type=int, default=512, help='number of hidden units in each RNN cell')
         nnArgs.add_argument('--numLayers', type=int, default=2, help='number of rnn layers')
-        nnArgs.add_argument('--softmaxSamples', type=int, default=0, help='Number of samples in the sampled softmax loss function. A value of 0 deactivates sampled softmax')
+        nnArgs.add_argument('--softmaxSamples', type=int, default=5, help='Number of samples in the sampled softmax loss function. A value of 0 deactivates sampled softmax')
         nnArgs.add_argument('--initEmbeddings', action='store_true', help='if present, the program will initialize the embeddings with pre-trained word2vec vectors')
         nnArgs.add_argument('--embeddingSize', type=int, default=64, help='embedding size of the word representation')
         nnArgs.add_argument('--embeddingSource', type=str, default="GoogleNews-vectors-negative300.bin", help='embedding file to use for the word representation')
+        nnArgs.add_argument('--maxGradientNorm', type=float, default=5.0, help='Clip gradients to this norm.')
 
         # Training options
         trainingArgs = parser.add_argument_group('Training options')
@@ -140,8 +141,6 @@ class Chatbot:
         """
         Launch the training and/or the interactive mode
         """
-        print('Welcome to DeepQA v0.1 !')
-        print()
         print('TensorFlow detected: v{}'.format(tf.__version__))
 
         # General initialisation
@@ -325,23 +324,26 @@ class Chatbot:
               'expectation. Type \'exit\' or just press ENTER to quit the program. Have fun.')
 
         while True:
-            question = input(self.SENTENCES_PREFIX[0])
-            if question == '' or question == 'exit':
-                break
+            try:
+                question = input(self.SENTENCES_PREFIX[0])
+                if question == 'exit':
+                    break
 
-            questionSeq = []  # Will be contain the question as seen by the encoder
-            answer = self.singlePredict(question, questionSeq)
-            if not answer:
-                print('Warning: sentence too long, sorry. Maybe try a simpler sentence.')
-                continue  # Back to the beginning, try again
+                questionSeq = []  # Will be contain the question as seen by the encoder
+                answer = self.singlePredict(question, questionSeq)
+                if not answer:
+                    print('Warning: sentence too long, sorry. Maybe try a simpler sentence.')
+                    continue  # Back to the beginning, try again
 
-            print('{}{}'.format(self.SENTENCES_PREFIX[1], self.textData.sequence2str(answer, clean=True)))
+                print('{}{}'.format(self.SENTENCES_PREFIX[1], self.textData.sequence2str(answer, clean=True)))
 
-            if self.args.verbose:
-                print(self.textData.batchSeq2str(questionSeq, clean=True, reverse=True))
-                print(self.textData.sequence2str(answer))
+                if self.args.verbose:
+                    print(self.textData.batchSeq2str(questionSeq, clean=True, reverse=True))
+                    print(self.textData.sequence2str(answer))
 
-            print()
+                print()
+            except UnicodeDecodeError as e:
+                pass
 
     def singlePredict(self, question, questionSeq=None):
         """ Predict the sentence
@@ -391,9 +393,13 @@ class Chatbot:
         """
 
         # Fetch embedding variables from model
-        with tf.variable_scope("embedding_rnn_seq2seq/rnn/embedding_wrapper", reuse=True):
+        #with tf.variable_scope("embedding_rnn_seq2seq/rnn/embedding_wrapper", reuse=True):
+        #    em_in = tf.get_variable("embedding")
+        #with tf.variable_scope("embedding_rnn_seq2seq/embedding_rnn_decoder", reuse=True):
+        #    em_out = tf.get_variable("embedding")
+        with tf.variable_scope("embedding_attention_seq2seq/rnn/embedding_wrapper", reuse=True):
             em_in = tf.get_variable("embedding")
-        with tf.variable_scope("embedding_rnn_seq2seq/embedding_rnn_decoder", reuse=True):
+        with tf.variable_scope("embedding_attention_seq2seq/embedding_attention_decoder", reuse=True):
             em_out = tf.get_variable("embedding")
 
         # Disable training for embeddings
