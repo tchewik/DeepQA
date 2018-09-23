@@ -94,3 +94,5 @@ ENV/
 # nvidia-docker-compose
 nvidia-docker-compose.yml
 
+# helper notes
+*.helper

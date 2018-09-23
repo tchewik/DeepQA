@@ -94,18 +94,32 @@ class Chatbot:
                                 help='if present, launch the program try to answer all sentences from data/test/ with'
                                      ' the defined model(s), in interactive mode, the user can wrote his own sentences,'
                                      ' use daemon mode to integrate the chatbot in another program')
-        globalArgs.add_argument('--createDataset', action='store_true', help='if present, the program will only generate the dataset from the corpus (no training/testing)')
-        globalArgs.add_argument('--playDataset', type=int, nargs='?', const=10, default=None,  help='if set, the program  will randomly play some samples(can be use conjointly with createDataset if this is the only action you want to perform)')
-        globalArgs.add_argument('--reset', action='store_true', help='use this if you want to ignore the previous model present on the model directory (Warning: the model will be destroyed with all the folder content)')
-        globalArgs.add_argument('--verbose', action='store_true', help='When testing, will plot the outputs at the same time they are computed')
-        globalArgs.add_argument('--debug', action='store_true', help='run DeepQA with Tensorflow debug mode. Read TF documentation for more details on this.')
-        globalArgs.add_argument('--keepAll', action='store_true', help='If this option is set, all saved model will be kept (Warning: make sure you have enough free disk space or increase saveEvery)')  # TODO: Add an option to delimit the max size
-        globalArgs.add_argument('--modelTag', type=str, default=None, help='tag to differentiate which model to store/load')
-        globalArgs.add_argument('--rootDir', type=str, default=None, help='folder where to look for the models and data')
-        globalArgs.add_argument('--watsonMode', action='store_true', help='Inverse the questions and answer when training (the network try to guess the question)')
-        globalArgs.add_argument('--autoEncode', action='store_true', help='Randomly pick the question or the answer and use it both as input and output')
-        globalArgs.add_argument('--device', type=str, default=None, help='\'gpu\' or \'cpu\' (Warning: make sure you have enough free RAM), allow to choose on which hardware run the model')
-        globalArgs.add_argument('--seed', type=int, default=None, help='random seed for replication')
+        globalArgs.add_argument('--createDataset', action='store_true',
+                                help='if present, the program will only generate the dataset from the corpus (no training/testing)')
+        globalArgs.add_argument('--playDataset', type=int, nargs='?', const=10, default=None,
+                                help='if set, the program  will randomly play some samples(can be use conjointly with createDataset if this is the only action you want to perform)')
+        globalArgs.add_argument('--reset', action='store_true',
+                                help='use this if you want to ignore the previous model present on the model directory (Warning: the model will be destroyed with all the folder content)')
+        globalArgs.add_argument('--verbose', action='store_true',
+                                help='When testing, will plot the outputs at the same time they are computed')
+        globalArgs.add_argument('--debug', action='store_true',
+                                help='run DeepQA with Tensorflow debug mode. Read TF documentation for more details on this.')
+        globalArgs.add_argument('--keepAll', action='store_true',
+                                help='If this option is set, all saved model will be kept (Warning: make sure you have enough free disk space or increase saveEvery)')  # TODO: Add an option to delimit the max size
+        globalArgs.add_argument('--modelTag', type=str, default=None,
+                                help='tag to differentiate which model to store/load')
+        globalArgs.add_argument('--rootDir', type=str, default=None,
+                                help='folder where to look for the models and data')
+        globalArgs.add_argument('--watsonMode', action='store_true',
+                                help='Inverse the questions and answer when training (the network try to guess the question)')
+        globalArgs.add_argument('--autoEncode', action='store_true',
+                                help='Randomly pick the question or the answer and use it both as input and output')
+        globalArgs.add_argument('--device', type=str, default=None,
+                                help='\'gpu\' or \'cpu\' (Warning: make sure you have enough free RAM), allow to choose on which hardware run the model')
+        globalArgs.add_argument('--seed', type=int, default=None,
+                                help='random seed for replication')
+        globalArgs.add_argument('--attention', action='store_true', default=False,
+                                help='if present, create the attention-based model as is in [Bahdanau et al. Neural machine translation by jointly learning to align and translate]. Otherwise use vanilla seq2seq.')
 
         # Dataset options
         datasetArgs = parser.add_argument_group('Dataset options')
@@ -125,7 +139,7 @@ class Chatbot:
         nnArgs.add_argument('--initEmbeddings', action='store_true', help='if present, the program will initialize the embeddings with pre-trained word2vec vectors')
         nnArgs.add_argument('--embeddingSize', type=int, default=64, help='embedding size of the word representation')
         nnArgs.add_argument('--embeddingSource', type=str, default="GoogleNews-vectors-negative300.bin", help='embedding file to use for the word representation')
-        nnArgs.add_argument('--maxGradientNorm', type=float, default=5.0, help='Clip gradients to this norm.')
+
 
         # Training options
         trainingArgs = parser.add_argument_group('Training options')
@@ -389,18 +403,21 @@ class Chatbot:
     def loadEmbedding(self, sess):
         """ Initialize embeddings with pre-trained word2vec vectors
         Will modify the embedding weights of the current loaded model
-        Uses the GoogleNews pre-trained values (path hardcoded)
         """
 
         # Fetch embedding variables from model
-        #with tf.variable_scope("embedding_rnn_seq2seq/rnn/embedding_wrapper", reuse=True):
-        #    em_in = tf.get_variable("embedding")
-        #with tf.variable_scope("embedding_rnn_seq2seq/embedding_rnn_decoder", reuse=True):
-        #    em_out = tf.get_variable("embedding")
-        with tf.variable_scope("embedding_attention_seq2seq/rnn/embedding_wrapper", reuse=True):
-            em_in = tf.get_variable("embedding")
-        with tf.variable_scope("embedding_attention_seq2seq/embedding_attention_decoder", reuse=True):
-            em_out = tf.get_variable("embedding")
+        if self.args.attention:
+            print('Use attention seq2seq model')
+            with tf.variable_scope("embedding_attention_seq2seq/rnn/embedding_wrapper", reuse=True):
+                em_in = tf.get_variable("embedding")
+            with tf.variable_scope("embedding_attention_seq2seq/embedding_attention_decoder", reuse=True):
+                em_out = tf.get_variable("embedding")
+        else:
+            print('Use vanilla seq2seq model')
+            with tf.variable_scope("embedding_rnn_seq2seq/rnn/embedding_wrapper", reuse=True):
+                em_in = tf.get_variable("embedding")
+            with tf.variable_scope("embedding_rnn_seq2seq/embedding_rnn_decoder", reuse=True):
+                em_out = tf.get_variable("embedding")
 
         # Disable training for embeddings
         variables = tf.get_collection_ref(tf.GraphKeys.TRAINABLE_VARIABLES)
