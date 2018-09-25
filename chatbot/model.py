@@ -179,7 +179,7 @@ class Model:
                 self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
                 embedding_size=self.args.embeddingSize,  # Dimension of each word
                 output_projection=outputProjection.getWeights() if outputProjection else None,
-                feed_previous=self.args.test  # When we test (self.args.test), we use previous output as next input (feed_previous)
+                feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
             )
 
         else:
@@ -191,7 +191,7 @@ class Model:
                 self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
                 embedding_size=self.args.embeddingSize,  # Dimension of each word
                 output_projection=outputProjection.getWeights() if outputProjection else None,
-                feed_previous=self.args.test  # When we test (self.args.test), we use previous output as next input (feed_previous)
+                feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
             )
 
         # TODO: When the LSTM hidden size is too big, we should project the LSTM output into a smaller space (4086 => 2046): Should speed up
